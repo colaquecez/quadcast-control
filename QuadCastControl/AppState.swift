@@ -230,7 +230,8 @@ final class AppState: ObservableObject {
             return "No microphone attached."
         case .protocolUnavailable(let model):
             if let model {
-                return "The \(model.rawValue) is recognized, but its LED protocol is not implemented in this app."
+                return
+                    "The \(model.rawValue) is recognized, but its LED protocol is not implemented in this app."
             }
             return "This device's LED protocol is not implemented."
         case .controlNotEnabled:

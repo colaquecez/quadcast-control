@@ -21,7 +21,8 @@ public enum HexDump {
     /// optional `0x` prefix per byte. Returns nil on any malformed token.
     public static func parse(_ text: String) -> [UInt8]? {
         let separators = CharacterSet(charactersIn: " ,\n\t\r")
-        var tokens = text
+        var tokens =
+            text
             .components(separatedBy: separators)
             .filter { !$0.isEmpty }
             .map { token -> String in

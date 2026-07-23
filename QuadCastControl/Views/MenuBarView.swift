@@ -18,10 +18,13 @@ struct MenuBarView: View {
 
             if appState.isConnected && !appState.capabilities.isEmpty {
                 if appState.lightingControlEnabled {
-                    Toggle("LED", isOn: Binding(
-                        get: { appState.ledOn },
-                        set: { appState.ledToggled($0) }
-                    ))
+                    Toggle(
+                        "LED",
+                        isOn: Binding(
+                            get: { appState.ledOn },
+                            set: { appState.ledToggled($0) }
+                        )
+                    )
                     .toggleStyle(.switch)
 
                     if appState.capabilities.contains(.brightness) {
@@ -40,10 +43,13 @@ struct MenuBarView: View {
                     }
 
                     if appState.capabilities.contains(.staticColor) {
-                        ColorPicker("Color", selection: Binding(
-                            get: { appState.color },
-                            set: { appState.colorChanged($0) }
-                        ), supportsOpacity: false)
+                        ColorPicker(
+                            "Color",
+                            selection: Binding(
+                                get: { appState.color },
+                                set: { appState.colorChanged($0) }
+                            ), supportsOpacity: false
+                        )
                         .disabled(!appState.ledOn)
                     }
                 } else {
@@ -86,9 +92,10 @@ struct MenuBarView: View {
             SettingsLink {
                 Text("Settings…")
             }
-            .simultaneousGesture(TapGesture().onEnded {
-                NSApp.activate(ignoringOtherApps: true)
-            })
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    NSApp.activate(ignoringOtherApps: true)
+                })
         } else {
             Button("Settings…") {
                 // Legacy selector for macOS 13 (SettingsLink is 14+).

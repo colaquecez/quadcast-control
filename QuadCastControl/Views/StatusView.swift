@@ -51,8 +51,8 @@ struct StatusView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Connect a HyperX QuadCast 2 or QuadCast 2 S via USB.")
                         Text(
-                            "The app watches for HyperX devices (vendor IDs 0x0951 and 0x03F0) " +
-                            "and binds automatically when a supported LED controller appears."
+                            "The app watches for HyperX devices (vendor IDs 0x0951 and 0x03F0) "
+                                + "and binds automatically when a supported LED controller appears."
                         )
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -74,9 +74,11 @@ struct StatusView: View {
 
     private func capabilityRow(_ label: String, _ capability: LightingCapabilities) -> some View {
         LabeledContent(label) {
-            Image(systemName: appState.capabilities.contains(capability)
-                  ? "checkmark.circle.fill" : "minus.circle")
-                .foregroundStyle(appState.capabilities.contains(capability) ? .green : .secondary)
+            Image(
+                systemName: appState.capabilities.contains(capability)
+                    ? "checkmark.circle.fill" : "minus.circle"
+            )
+            .foregroundStyle(appState.capabilities.contains(capability) ? .green : .secondary)
         }
     }
 }

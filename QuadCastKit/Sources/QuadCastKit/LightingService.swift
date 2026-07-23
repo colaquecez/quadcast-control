@@ -231,8 +231,9 @@ public actor LightingService {
 
     private func startRefreshLoopIfNeeded() {
         guard refreshLoop == nil,
-              controlEnabled,
-              let interval = encoder?.refreshInterval else { return }
+            controlEnabled,
+            let interval = encoder?.refreshInterval
+        else { return }
         refreshLoop = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: interval)

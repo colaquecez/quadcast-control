@@ -66,8 +66,8 @@ public enum PacketDiff {
         var notes: [String] = []
         if before.count != after.count {
             notes.append(
-                "Packet lengths differ (\(before.count) vs \(after.count)) — " +
-                "these may be different commands, not a field change."
+                "Packet lengths differ (\(before.count) vs \(after.count)) — "
+                    + "these may be different commands, not a field change."
             )
         }
         guard !diffs.isEmpty else {
@@ -92,41 +92,42 @@ public enum PacketDiff {
                 if let b = d.before, let a = d.after {
                     if (b == 0x00 && a != 0x00) || (b != 0x00 && a == 0x00) {
                         notes.append(
-                            "Offset \(start): single byte toggled " +
-                            "(0x\(String(format: "%02X", b)) → 0x\(String(format: "%02X", a))) " +
-                            "— possible on/off flag or mode selector."
+                            "Offset \(start): single byte toggled "
+                                + "(0x\(String(format: "%02X", b)) → 0x\(String(format: "%02X", a))) "
+                                + "— possible on/off flag or mode selector."
                         )
                     } else {
                         notes.append(
-                            "Offset \(start): single byte changed " +
-                            "(0x\(String(format: "%02X", b)) → 0x\(String(format: "%02X", a))) " +
-                            "— possible scalar field (brightness, speed, mode index)."
+                            "Offset \(start): single byte changed "
+                                + "(0x\(String(format: "%02X", b)) → 0x\(String(format: "%02X", a))) "
+                                + "— possible scalar field (brightness, speed, mode index)."
                         )
                     }
                 }
             case 3:
                 notes.append(
-                    "Offsets \(start)–\(start + 2): three consecutive bytes changed — " +
-                    "possible RGB color triplet (byte order unknown: could be RGB, GRB, or BGR)."
+                    "Offsets \(start)–\(start + 2): three consecutive bytes changed — "
+                        + "possible RGB color triplet (byte order unknown: could be RGB, GRB, or BGR)."
                 )
             case 4:
                 notes.append(
-                    "Offsets \(start)–\(start + 3): four consecutive bytes changed — " +
-                    "possible RGBW / RGB+brightness group or a 32-bit field."
+                    "Offsets \(start)–\(start + 3): four consecutive bytes changed — "
+                        + "possible RGBW / RGB+brightness group or a 32-bit field."
                 )
             default:
                 notes.append(
-                    "Offsets \(start)–\(start + run.count - 1): \(run.count) consecutive " +
-                    "bytes changed — possible multi-byte field or payload block."
+                    "Offsets \(start)–\(start + run.count - 1): \(run.count) consecutive "
+                        + "bytes changed — possible multi-byte field or payload block."
                 )
             }
         }
         if let lastDiff = diffs.last,
-           lastDiff.offset == Swift.max(before.count, after.count) - 1,
-           diffs.count > 1 {
+            lastDiff.offset == Swift.max(before.count, after.count) - 1,
+            diffs.count > 1
+        {
             notes.append(
-                "The final byte also changed — many HID protocols put a checksum " +
-                "or sequence counter in the last byte."
+                "The final byte also changed — many HID protocols put a checksum "
+                    + "or sequence counter in the last byte."
             )
         }
         return notes

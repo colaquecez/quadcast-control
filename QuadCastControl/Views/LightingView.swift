@@ -15,15 +15,17 @@ struct LightingView: View {
         Form {
             if !appState.isConnected {
                 Section {
-                    Label("Connect a supported microphone to control its lighting.",
-                          systemImage: "mic.slash")
-                        .foregroundStyle(.secondary)
+                    Label(
+                        "Connect a supported microphone to control its lighting.",
+                        systemImage: "mic.slash"
+                    )
+                    .foregroundStyle(.secondary)
                 }
             } else if appState.capabilities.isEmpty {
                 Section {
                     Label(
-                        "This device is recognized, but its LED protocol is not implemented, " +
-                        "so the app stays read-only. See PROTOCOL.md for details.",
+                        "This device is recognized, but its LED protocol is not implemented, "
+                            + "so the app stays read-only. See PROTOCOL.md for details.",
                         systemImage: "eye"
                     )
                     .foregroundStyle(.secondary)
@@ -49,23 +51,25 @@ struct LightingView: View {
     /// never transmits until the user chooses to.
     @ViewBuilder private var optInSection: some View {
         Section {
-            Toggle(isOn: Binding(
-                get: { appState.lightingControlEnabled },
-                set: { enabled in
-                    if enabled {
-                        appState.userEnabledLightingControl()
-                    } else {
-                        appState.userDisabledLightingControl()
+            Toggle(
+                isOn: Binding(
+                    get: { appState.lightingControlEnabled },
+                    set: { enabled in
+                        if enabled {
+                            appState.userEnabledLightingControl()
+                        } else {
+                            appState.userDisabledLightingControl()
+                        }
                     }
-                }
-            )) {
+                )
+            ) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Lighting control")
                     Text(
                         appState.lightingControlEnabled
-                        ? "Sending community-verified commands to the microphone."
-                        : "Off: nothing is sent to the microphone. Turning this on sends " +
-                          "community-verified LED commands (sources in PROTOCOL.md)."
+                            ? "Sending community-verified commands to the microphone."
+                            : "Off: nothing is sent to the microphone. Turning this on sends "
+                                + "community-verified LED commands (sources in PROTOCOL.md)."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -76,10 +80,13 @@ struct LightingView: View {
 
     @ViewBuilder private var controlsSection: some View {
         Section("LED") {
-            Toggle("LED on", isOn: Binding(
-                get: { appState.ledOn },
-                set: { appState.ledToggled($0) }
-            ))
+            Toggle(
+                "LED on",
+                isOn: Binding(
+                    get: { appState.ledOn },
+                    set: { appState.ledToggled($0) }
+                )
+            )
             .disabled(!controlsActive)
 
             if hasBrightness {
@@ -112,8 +119,8 @@ struct LightingView: View {
                     .font(.body.monospaced())
             } else if appState.isConnected {
                 Label(
-                    "The QuadCast 2's LEDs are red-only — the hardware has no color " +
-                    "control, only brightness.",
+                    "The QuadCast 2's LEDs are red-only — the hardware has no color "
+                        + "control, only brightness.",
                     systemImage: "info.circle"
                 )
                 .font(.callout)
@@ -139,10 +146,12 @@ struct LightingView: View {
                     appState.saveToDevice()
                 }
                 .disabled(!controlsActive)
-                Text("Writes the current color to the microphone's flash so it survives " +
-                     "unplugging. Use sparingly — flash has limited write cycles.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Writes the current color to the microphone's flash so it survives "
+                        + "unplugging. Use sparingly — flash has limited write cycles."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
