@@ -43,6 +43,18 @@ echo "==> Staging DMG contents"
 cp -R "$APP" "$STAGE_DIR/"
 ln -s /Applications "$STAGE_DIR/Applications"
 
+# Styled Finder window: background image + pre-baked icon layout captured
+# once via Finder (scripts/dmg-assets/DS_Store_template). Using a stored
+# .DS_Store keeps CI deterministic — no Finder scripting on runners. The
+# "background" folder is flag-hidden so users only see the two icons.
+# Regenerate the assets after design changes:
+#   swift scripts/dmg-assets/make-background.swift scripts/dmg-assets/background.png
+#   (then re-capture the layout — see git history of this script)
+mkdir "$STAGE_DIR/background"
+cp scripts/dmg-assets/background.png "$STAGE_DIR/background/background.png"
+cp scripts/dmg-assets/DS_Store_template "$STAGE_DIR/.DS_Store"
+chflags hidden "$STAGE_DIR/background"
+
 mkdir -p dist
 DMG="dist/QuadCastControl-$VERSION.dmg"
 rm -f "$DMG"
