@@ -21,6 +21,49 @@ struct DiagnosticsView: View {
                 }
             }
 
+            Section("Live input reports (read-only)") {
+                Toggle(
+                    "Monitor device events",
+                    isOn: Binding(
+                        get: { appState.inputMonitoringActive },
+                        set: { appState.setInputMonitoring($0) }
+                    )
+                )
+                Text(
+                    "Streams the microphone's input reports without sending anything. "
+                        + "Turn the gain knob, switch its mode, or tap mute and watch which "
+                        + "bytes change — the raw material for mapping the audio-control protocol."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if appState.inputMonitoringActive {
+                    HStack {
+                        Text("\(appState.inputEvents.count) events")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Clear") { appState.clearInputEvents() }
+                            .controlSize(.small)
+                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            ForEach(appState.inputEvents.suffix(100).reversed()) { event in
+                                Text(
+                                    "\(event.date.formatted(date: .omitted, time: .standard))  "
+                                        + "[\(appState.interfaceName(for: event.deviceID))]  "
+                                        + event.hexDescription
+                                )
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(minHeight: 120, maxHeight: 200)
+                }
+            }
+
             Section("Log") {
                 LogView(entries: appState.logEntries)
                     .frame(minHeight: 180)

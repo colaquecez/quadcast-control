@@ -27,6 +27,32 @@ public enum HIDTransportError: Error, Equatable, Sendable {
     case unsupportedReportID(UInt8)
     case unsupportedDevice(vendorID: Int, productID: Int)
     case emptyPayload
+    /// The transport cannot deliver input reports (e.g. the raw
+    /// control-transfer transport has no HID event stream).
+    case monitoringNotSupported
+}
+
+/// One input report received from a device — the read-only event stream used
+/// by the diagnostics monitor (knob turns, mute touches, …).
+public struct HIDInputReport: Sendable, Equatable, Identifiable {
+    public let id: UUID
+    /// Registry ID of the interface that produced the report.
+    public let deviceID: UInt64
+    public let reportID: UInt8
+    public let bytes: [UInt8]
+    public let date: Date
+
+    public init(deviceID: UInt64, reportID: UInt8, bytes: [UInt8], date: Date = Date()) {
+        self.id = UUID()
+        self.deviceID = deviceID
+        self.reportID = reportID
+        self.bytes = bytes
+        self.date = date
+    }
+
+    public var hexDescription: String {
+        "id=0x\(String(format: "%02X", reportID)) " + HexDump.compact(bytes)
+    }
 }
 
 /// A fully-formed HID report ready for the transport.

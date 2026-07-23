@@ -78,6 +78,8 @@ public final class HyperXDeviceManager {
         self.manager = nil
         for transport in transports.values { transport.markDisconnected() }
         transports.removeAll()
+        for monitor in monitors.values { monitor.markDisconnected() }
+        monitors.removeAll()
         devices.removeAll()
         interfaces.removeAll()
     }
@@ -103,6 +105,53 @@ public final class HyperXDeviceManager {
         }
         transports[id] = transport
         return transport
+    }
+
+    // MARK: Read-only input monitoring
+
+    /// Monitor transports are separate from send transports: they open the
+    /// HID interface read-only and never send (works for audio-side PIDs and
+    /// for the QuadCast 2 controller, whose *send* path is control transfers).
+    private var monitors: [UInt64: IOKitHIDTransport] = [:]
+
+    /// Starts read-only input-report monitoring on an allowlisted interface.
+    /// Returns false if the interface is unknown or cannot be opened.
+    @discardableResult
+    public func startInputMonitoring(
+        id: UInt64,
+        handler: @escaping @Sendable (HIDInputReport) -> Void
+    ) -> Bool {
+        guard let device = devices[id], let info = interfaces[id],
+            info.knownDevice != nil
+        else { return false }
+        let monitor: IOKitHIDTransport
+        if let existing = monitors[id] {
+            monitor = existing
+        } else {
+            monitor = IOKitHIDTransport(device: device, info: info, log: log)
+            monitors[id] = monitor
+        }
+        do {
+            try monitor.openForMonitoring()
+            try monitor.startInputReportMonitoring(handler)
+            return true
+        } catch {
+            log.warning(
+                "Input monitoring unavailable for \(info.name): \(String(describing: error))"
+            )
+            monitors[id] = nil
+            return false
+        }
+    }
+
+    public func stopInputMonitoring(id: UInt64) {
+        monitors[id]?.stopInputReportMonitoring()
+        monitors[id]?.close()
+        monitors[id] = nil
+    }
+
+    public func stopAllInputMonitoring() {
+        for id in Array(monitors.keys) { stopInputMonitoring(id: id) }
     }
 
     /// The first connected interface whose VID/PID is in the allowlist, i.e.
@@ -133,10 +182,12 @@ public final class HyperXDeviceManager {
     private func deviceRemoved(_ device: IOHIDDevice) {
         let id = Self.registryID(of: device)
         guard interfaces[id] != nil else { return }
-        // Tell the transport first so in-flight sends fail cleanly instead of
-        // touching a dead IOKit handle.
+        // Tell the transports first so in-flight sends fail cleanly instead
+        // of touching a dead IOKit handle.
         transports[id]?.markDisconnected()
         transports[id] = nil
+        monitors[id]?.markDisconnected()
+        monitors[id] = nil
         devices[id] = nil
         interfaces[id] = nil
         log.info("HID interface removed (id \(id))")

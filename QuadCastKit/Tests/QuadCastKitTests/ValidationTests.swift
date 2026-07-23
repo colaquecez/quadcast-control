@@ -1,5 +1,19 @@
+import Foundation
 import Testing
+
 @testable import QuadCastKit
+
+/// Tiny thread-safe box for asserting on values written from @Sendable
+/// callbacks.
+final class LockedBox<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: T
+    init(_ value: T) { stored = value }
+    var value: T { lock.withLock { stored } }
+    func mutate(_ body: (inout T) -> Void) {
+        lock.withLock { body(&stored) }
+    }
+}
 
 private let permissivePolicy = HIDReportPolicy(
     allowedReportIDs: [.feature: [0x00, 0x07], .output: [0x00]],
@@ -84,6 +98,38 @@ struct DeviceAllowlistTests {
         #expect(known?.model == .quadCast2)
         #expect(known?.supportsLEDControl == true)
         #expect(known?.role == .ledController)
+    }
+
+    @Test func inputMonitoringDeliversReports() throws {
+        let mock = MockHIDTransport(
+            info: MockHIDTransport.makeInfo(vendorID: 0x03F0, productID: 0x09AF)
+        )
+        try mock.open()
+
+        let received = LockedBox<[HIDInputReport]>([])
+        try mock.startInputReportMonitoring { report in
+            received.mutate { $0.append(report) }
+        }
+        mock.emitInputReport(reportID: 0x05, bytes: [0x01, 0x02, 0x03])
+        mock.emitInputReport(reportID: 0x03, bytes: [0xE9, 0x00])
+
+        #expect(received.value.count == 2)
+        #expect(received.value.first?.reportID == 0x05)
+        #expect(received.value.first?.bytes == [0x01, 0x02, 0x03])
+
+        // After stopping, nothing more is delivered.
+        mock.stopInputReportMonitoring()
+        mock.emitInputReport(reportID: 0x05, bytes: [0xFF])
+        #expect(received.value.count == 2)
+    }
+
+    @Test func monitoringRequiresOpenTransport() {
+        let mock = MockHIDTransport(
+            info: MockHIDTransport.makeInfo(vendorID: 0x03F0, productID: 0x09AF)
+        )
+        #expect(throws: HIDTransportError.deviceNotOpen) {
+            try mock.startInputReportMonitoring { _ in }
+        }
     }
 
     @Test func quadCast2UsesControlTransferPath() {

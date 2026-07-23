@@ -68,6 +68,31 @@ public final class MockHIDTransport: HIDTransport, @unchecked Sendable {
         lock.withLock { disconnectHandler = handler }
     }
 
+    // MARK: Input monitoring
+
+    private var inputHandler: (@Sendable (HIDInputReport) -> Void)?
+
+    public func startInputReportMonitoring(
+        _ handler: @escaping @Sendable (HIDInputReport) -> Void
+    ) throws(HIDTransportError) {
+        try lock.withLockTyped { () throws(HIDTransportError) -> Void in
+            if _disconnected { throw .deviceDisconnected }
+            guard _isOpen else { throw .deviceNotOpen }
+            inputHandler = handler
+        }
+    }
+
+    public func stopInputReportMonitoring() {
+        lock.withLock { inputHandler = nil }
+    }
+
+    /// Test control: simulates the device emitting an input report (e.g. a
+    /// knob turn).
+    public func emitInputReport(reportID: UInt8, bytes: [UInt8]) {
+        let handler = lock.withLock { inputHandler }
+        handler?(HIDInputReport(deviceID: info.id, reportID: reportID, bytes: bytes))
+    }
+
     // MARK: Test controls
 
     /// Everything successfully sent through this transport, in order.
