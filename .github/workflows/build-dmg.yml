@@ -1,0 +1,67 @@
+# Builds the app on every push/PR, and packages + publishes a DMG when a
+# version tag (v*) is pushed. workflow_dispatch allows manual DMG builds.
+#
+# The DMG is ad-hoc signed unless you configure Developer ID signing:
+# add repository secrets and extend the "Import signing certificate" step —
+# without notarization, downloaders must right-click → Open the app once
+# (Gatekeeper), which the release notes template mentions.
+name: Build & Release DMG
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test, build and package
+    runs-on: macos-15 # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Run unit tests (no hardware required)
+        run: swift test --package-path QuadCastKit
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Release and create DMG
+        env:
+          # Passed via env (not inline interpolation) so a crafted tag name
+          # can't inject shell commands.
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/make-dmg.sh "$VERSION"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuadCastControl-${{ steps.version.outputs.version }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      - name: Publish GitHub release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg
+          generate_release_notes: true
+          body: |
+            ### Install
+            Open the DMG and drag **QuadCastControl** to **Applications**.
+
+            This build is not notarized: on first launch, right-click the app
+            and choose **Open** (once) to pass Gatekeeper.
