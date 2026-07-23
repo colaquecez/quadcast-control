@@ -14,6 +14,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Needed so the release step can create GitHub releases with the default
+# GITHUB_TOKEN (new repos default the workflow token to read-only).
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Test, build and package
