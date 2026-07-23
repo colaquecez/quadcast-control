@@ -4,11 +4,40 @@ A lightweight, native macOS app for controlling the LED lighting of the
 **HyperX QuadCast 2** and **QuadCast 2 S** microphones — a local, secure
 alternative to HyperX NGENUITY (which is Windows-only).
 
+![Main window with the QuadCast 2 connected](docs/images/main-window.png)
+
 - Native SwiftUI + `IOHIDManager` (no kernel extensions, no drivers, no admin
   privileges, no network access)
 - Runs sandboxed on Apple Silicon (M1 and newer), macOS 13+
-- Menu bar controls, so the main window never needs to stay open
+- Lives in the menu bar (no Dock icon) — controls are one click away and the
+  main window never needs to stay open
 - Strict device allowlist and a "nothing is sent until you opt in" model
+
+## Download & install
+
+Grab the latest `QuadCastControl-x.y.z.dmg` from the
+**[Releases page](https://github.com/colaquecez/quadcast-control/releases/latest)**,
+open it, and drag **QuadCastControl** onto the **Applications** folder.
+
+> **First launch:** builds are not notarized, so right-click the app in
+> Applications and choose **Open** once to pass Gatekeeper. After that it
+> opens normally.
+
+Then:
+
+1. Click the **mic icon** in the menu bar (the app has no Dock icon).
+2. Turn on **Lighting control** — nothing is sent over USB until you do.
+3. Optionally enable **Settings… → Start at login** so your brightness is
+   held automatically (the QuadCast 2 reverts to full brightness whenever
+   the app isn't running — a device limitation, see PROTOCOL.md).
+
+### Menu bar controls
+
+![Menu bar dropdown with LED toggle and brightness slider](docs/images/menu-bar.png)
+
+### Settings
+
+![Settings window with start-at-login and lighting control](docs/images/settings.png)
 
 ## Supported devices
 
