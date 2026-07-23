@@ -2,7 +2,9 @@
 # - Pull requests → test + lint + typecheck only (fast feedback, no DMG)
 # - Merge to main → checks, then auto-bump the patch version, tag it,
 #                   package the DMG and publish a GitHub release
-#                   (add "[no release]" to the merge commit message to skip)
+#                   (add "[no release]" to the commit TITLE to skip — only
+#                   the first line is checked, so PR descriptions that merely
+#                   mention the marker don't suppress releases)
 # - Manual tag v* → checks, package, release that exact version
 #                   (use this for minor/major bumps)
 # - workflow_dispatch → checks + DMG artifact only, no tag/release
@@ -86,7 +88,7 @@ jobs:
               echo "create_tag=false"
               echo "release=true"
             } >> "$GITHUB_OUTPUT"
-          elif [[ "$REF" == "refs/heads/main" && "$EVENT" == "push" && "$HEAD_MSG" != *"[no release]"* ]]; then
+          elif [[ "$REF" == "refs/heads/main" && "$EVENT" == "push" && "$(head -n1 <<< "$HEAD_MSG")" != *"[no release]"* ]]; then
             # Merge to main: bump the patch of the latest v* tag.
             latest=$(git tag -l 'v*' --sort=-v:refname | head -1)
             latest=${latest:-v0.0.0}
