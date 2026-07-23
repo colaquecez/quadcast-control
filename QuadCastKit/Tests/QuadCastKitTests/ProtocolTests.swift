@@ -26,19 +26,21 @@ struct QuadCast2ProtocolTests {
         let packets = try encoder.apply(state)
         let heartbeat = packets[1].report
         let expectedLevel = QuadCast2Protocol.deviceBrightness(for: state)
-        #expect(Array(heartbeat.payload.prefix(10)) ==
-            [0x04, expectedLevel, 0, 0, 0, 0, 0, 0, 0x01, 0x00])
+        #expect(Array(heartbeat.payload.prefix(10)) == [0x04, expectedLevel, 0, 0, 0, 0, 0, 0, 0x01, 0x00])
         #expect(heartbeat.payload.count == 64)
     }
 
     @Test func brightnessScaleTopsOutAt0xF2() {
         // Device range is 0x00...0xF2 — NOT 0...255.
-        #expect(QuadCast2Protocol.deviceBrightness(
-            for: LightingState(isOn: true, brightness: .full, color: .white)) == 0xF2)
-        #expect(QuadCast2Protocol.deviceBrightness(
-            for: LightingState(isOn: true, brightness: .off, color: .white)) == 0x00)
-        #expect(QuadCast2Protocol.deviceBrightness(
-            for: LightingState(isOn: false, brightness: .full, color: .white)) == 0x00)
+        #expect(
+            QuadCast2Protocol.deviceBrightness(
+                for: LightingState(isOn: true, brightness: .full, color: .white)) == 0xF2)
+        #expect(
+            QuadCast2Protocol.deviceBrightness(
+                for: LightingState(isOn: true, brightness: .off, color: .white)) == 0x00)
+        #expect(
+            QuadCast2Protocol.deviceBrightness(
+                for: LightingState(isOn: false, brightness: .full, color: .white)) == 0x00)
     }
 
     @Test func packetsAreCommunityVerified() throws {
@@ -109,7 +111,7 @@ struct QuadCast2SProtocolTests {
 
     @Test func saveSequenceEndsWithFramerateAndCommit() throws {
         let packets = try encoder.save(LightingState())
-        #expect(packets.count == 9) // initiate + 6 data + framerate + commit
+        #expect(packets.count == 9)  // initiate + 6 data + framerate + commit
         #expect(Array(packets[0].report.payload.prefix(4)) == [0x44, 0x03, 0x01, 0x06])
         #expect(Array(packets[7].report.payload.prefix(7)) == [0x42, 0x02, 0x00, 0x00, 0x00, 0xE8, 0x03])
         #expect(Array(packets[8].report.payload.prefix(5)) == [0x40, 0x01, 0x00, 0x00, 0xFF])

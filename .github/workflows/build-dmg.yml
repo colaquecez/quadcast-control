@@ -1,11 +1,16 @@
-# Builds the app on every push/PR, and packages + publishes a DMG when a
-# version tag (v*) is pushed. workflow_dispatch allows manual DMG builds.
+# CI layout:
+# - Pull requests → test + lint + typecheck only (fast feedback, no DMG)
+# - Merge to main → checks, then auto-bump the patch version, tag it,
+#                   package the DMG and publish a GitHub release
+#                   (add "[no release]" to the merge commit message to skip)
+# - Manual tag v* → checks, package, release that exact version
+#                   (use this for minor/major bumps)
+# - workflow_dispatch → checks + DMG artifact only, no tag/release
 #
-# The DMG is ad-hoc signed unless you configure Developer ID signing:
-# add repository secrets and extend the "Import signing certificate" step —
+# The DMG is ad-hoc signed unless you configure Developer ID signing —
 # without notarization, downloaders must right-click → Open the app once
 # (Gatekeeper), which the release notes template mentions.
-name: Build & Release DMG
+name: CI
 
 on:
   push:
@@ -14,40 +19,97 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Needed so the release step can create GitHub releases with the default
-# GITHUB_TOKEN (new repos default the workflow token to read-only).
+# Default: read-only token. Only the release job gets write access.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build:
-    name: Test, build and package
+  test:
+    name: Tests
     runs-on: macos-15 # Apple Silicon runner
     steps:
       - uses: actions/checkout@v4
-
-      - name: Show toolchain
-        run: |
-          sw_vers
-          xcodebuild -version
-          swift --version
-
       - name: Run unit tests (no hardware required)
         run: swift test --package-path QuadCastKit
 
-      - name: Determine version
+  lint:
+    name: Lint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift-format (config in .swift-format)
+        run: >
+          swift format lint --strict --recursive
+          QuadCastKit/Sources QuadCastKit/Tests QuadCastControl
+
+  typecheck:
+    name: Type check
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # Swift's compiler is the type checker; building the app target
+      # type-checks everything `swift test` doesn't cover (SwiftUI app code).
+      - name: Build app target (Debug)
+        run: >
+          xcodebuild -project QuadCastControl.xcodeproj
+          -scheme QuadCastControl -configuration Debug
+          -destination 'platform=macOS,arch=arm64'
+          CODE_SIGN_IDENTITY=- build
+
+  release:
+    name: Package & release
+    # Never on PRs; checks must pass first.
+    if: github.event_name != 'pull_request'
+    needs: [test, lint, typecheck]
+    runs-on: macos-15
+    permissions:
+      contents: write # push the bumped tag + create releases
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, needed for version bumping
+
+      - name: Resolve version
         id: version
+        env:
+          # Untrusted values go through env, never inline in the script.
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            # Manually pushed tag: release exactly that version.
+            {
+              echo "version=${REF_NAME#v}"
+              echo "tag=$REF_NAME"
+              echo "create_tag=false"
+              echo "release=true"
+            } >> "$GITHUB_OUTPUT"
+          elif [[ "$REF" == "refs/heads/main" && "$EVENT" == "push" && "$HEAD_MSG" != *"[no release]"* ]]; then
+            # Merge to main: bump the patch of the latest v* tag.
+            latest=$(git tag -l 'v*' --sort=-v:refname | head -1)
+            latest=${latest:-v0.0.0}
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            next="v$major.$minor.$((patch + 1))"
+            {
+              echo "version=${next#v}"
+              echo "tag=$next"
+              echo "create_tag=true"
+              echo "release=true"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "version=0.0.0-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            # workflow_dispatch or [no release]: artifact only.
+            {
+              echo "version=0.0.0-$(git rev-parse --short HEAD)"
+              echo "tag="
+              echo "create_tag=false"
+              echo "release=false"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build Release and create DMG
         env:
-          # Passed via env (not inline interpolation) so a crafted tag name
-          # can't inject shell commands.
           VERSION: ${{ steps.version.outputs.version }}
         run: ./scripts/make-dmg.sh "$VERSION"
 
@@ -58,10 +120,21 @@ jobs:
           path: dist/*.dmg
           if-no-files-found: error
 
-      - name: Publish GitHub release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create and push tag (merges to main)
+        if: steps.version.outputs.create_tag == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Publish GitHub release
+        if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           files: dist/*.dmg
           generate_release_notes: true
           body: |

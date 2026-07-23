@@ -202,13 +202,13 @@ struct LightingServiceTests {
         mock.clearSentReports()
 
         try await Task.sleep(for: .milliseconds(100))
-        #expect(mock.sentReports.count >= 2) // several refresh ticks landed
+        #expect(mock.sentReports.count >= 2)  // several refresh ticks landed
 
         await service.disableControl()
         try await Task.sleep(for: .milliseconds(30))
         let countAfterStop = mock.sentReports.count
         try await Task.sleep(for: .milliseconds(50))
-        #expect(mock.sentReports.count == countAfterStop) // loop actually stopped
+        #expect(mock.sentReports.count == countAfterStop)  // loop actually stopped
     }
 
     @Test func disconnectionIsHandledWithoutCrashing() async throws {

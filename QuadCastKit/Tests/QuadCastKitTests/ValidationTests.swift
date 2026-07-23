@@ -57,7 +57,7 @@ struct DeviceAllowlistTests {
     @Test func candidateVendorsAreOnlyKingstonAndHP() {
         #expect(DeviceAllowlist.isCandidateVendor(0x0951))
         #expect(DeviceAllowlist.isCandidateVendor(0x03F0))
-        #expect(!DeviceAllowlist.isCandidateVendor(0x046D)) // Logitech
+        #expect(!DeviceAllowlist.isCandidateVendor(0x046D))  // Logitech
     }
 
     @Test func transportRefusesToOpenUnsupportedDevice() {

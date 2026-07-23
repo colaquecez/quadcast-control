@@ -11,16 +11,16 @@ struct DeveloperView: View {
         Form {
             PacketDiffSection()
             #if DEBUG
-            ManualSendSection()
+                ManualSendSection()
             #else
-            Section("Manual report sending") {
-                Label(
-                    "Disabled in release builds. Build the app in the Debug " +
-                    "configuration to use the manual send tool.",
-                    systemImage: "lock"
-                )
-                .foregroundStyle(.secondary)
-            }
+                Section("Manual report sending") {
+                    Label(
+                        "Disabled in release builds. Build the app in the Debug "
+                            + "configuration to use the manual send tool.",
+                        systemImage: "lock"
+                    )
+                    .foregroundStyle(.secondary)
+                }
             #endif
         }
         .formStyle(.grouped)
@@ -39,10 +39,10 @@ private struct PacketDiffSection: View {
     var body: some View {
         Section("Packet diff") {
             Text(
-                "Paste two sanitized HID payload dumps (hex) captured before and " +
-                "after changing one setting — for example from a Wireshark/USBPcap " +
-                "capture of NGENUITY. Changed bytes are highlighted with possible " +
-                "interpretations. Nothing here is ever sent to the device."
+                "Paste two sanitized HID payload dumps (hex) captured before and "
+                    + "after changing one setting — for example from a Wireshark/USBPcap "
+                    + "capture of NGENUITY. Changed bytes are highlighted with possible "
+                    + "interpretations. Nothing here is ever sent to the device."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -117,92 +117,95 @@ private struct PacketDiffSection: View {
 // MARK: - Manual send (DEBUG builds only)
 
 #if DEBUG
-private struct ManualSendSection: View {
-    @EnvironmentObject private var appState: AppState
-    @AppStorage("developerModeEnabled") private var developerModeEnabled = false
-    @State private var reportHex = ""
-    @State private var useFeatureReport = true
-    @State private var reportID = 0
-    @State private var confirming = false
-    @State private var outcome: String?
+    private struct ManualSendSection: View {
+        @EnvironmentObject private var appState: AppState
+        @AppStorage("developerModeEnabled") private var developerModeEnabled = false
+        @State private var reportHex = ""
+        @State private var useFeatureReport = true
+        @State private var reportID = 0
+        @State private var confirming = false
+        @State private var outcome: String?
 
-    var body: some View {
-        Section("Manual report sending (DEBUG build)") {
-            Toggle(isOn: $developerModeEnabled) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Developer mode")
-                    Text("Allows sending a manually entered report to the connected device. " +
-                         "Captured commands are never replayed automatically.")
+        var body: some View {
+            Section("Manual report sending (DEBUG build)") {
+                Toggle(isOn: $developerModeEnabled) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Developer mode")
+                        Text(
+                            "Allows sending a manually entered report to the connected device. "
+                                + "Captured commands are never replayed automatically."
+                        )
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-            }
-
-            if developerModeEnabled {
-                Picker("Report type", selection: $useFeatureReport) {
-                    Text("Feature").tag(true)
-                    Text("Output").tag(false)
-                }
-                Stepper("Report ID: \(reportID)", value: $reportID, in: 0...255)
-                TextField("Payload hex (report ID excluded)", text: $reportHex, axis: .vertical)
-                    .font(.body.monospaced())
-                    .lineLimit(2...4)
-
-                Button("Send…") { confirming = true }
-                    .disabled(!appState.isConnected || HexDump.parse(reportHex) == nil)
-                    .confirmationDialog(
-                        "Send this report to the microphone?",
-                        isPresented: $confirming
-                    ) {
-                        Button("Send", role: .destructive) { send() }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text(
-                            "\(useFeatureReport ? "Feature" : "Output") report, ID \(reportID), " +
-                            "\(HexDump.parse(reportHex)?.count ?? 0) bytes. Sending unknown " +
-                            "commands can put the device in an unexpected state until replug."
-                        )
                     }
+                }
 
-                if let outcome {
-                    Text(outcome)
-                        .font(.callout.monospaced())
+                if developerModeEnabled {
+                    Picker("Report type", selection: $useFeatureReport) {
+                        Text("Feature").tag(true)
+                        Text("Output").tag(false)
+                    }
+                    Stepper("Report ID: \(reportID)", value: $reportID, in: 0...255)
+                    TextField("Payload hex (report ID excluded)", text: $reportHex, axis: .vertical)
+                        .font(.body.monospaced())
+                        .lineLimit(2...4)
+
+                    Button("Send…") { confirming = true }
+                        .disabled(!appState.isConnected || HexDump.parse(reportHex) == nil)
+                        .confirmationDialog(
+                            "Send this report to the microphone?",
+                            isPresented: $confirming
+                        ) {
+                            Button("Send", role: .destructive) { send() }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text(
+                                "\(useFeatureReport ? "Feature" : "Output") report, ID \(reportID), "
+                                    + "\(HexDump.parse(reportHex)?.count ?? 0) bytes. Sending unknown "
+                                    + "commands can put the device in an unexpected state until replug."
+                            )
+                        }
+
+                    if let outcome {
+                        Text(outcome)
+                            .font(.callout.monospaced())
+                    }
                 }
             }
         }
-    }
 
-    private func send() {
-        guard let payload = HexDump.parse(reportHex) else { return }
-        let report = HIDReport(
-            kind: useFeatureReport ? .feature : .output,
-            reportID: UInt8(clamping: reportID),
-            payload: payload
-        )
-        guard let device = appState.primaryDevice,
-              let transport = appState.deviceManager.transport(for: device.id) else {
-            outcome = "No device transport available."
-            return
+        private func send() {
+            guard let payload = HexDump.parse(reportHex) else { return }
+            let report = HIDReport(
+                kind: useFeatureReport ? .feature : .output,
+                reportID: UInt8(clamping: reportID),
+                payload: payload
+            )
+            guard let device = appState.primaryDevice,
+                let transport = appState.deviceManager.transport(for: device.id)
+            else {
+                outcome = "No device transport available."
+                return
+            }
+            // Manual sends still respect the device's max lengths, but use a
+            // permissive ID policy — that is the point of the tool. DEBUG only.
+            let policy = HIDReportPolicy(
+                allowedReportIDs: [
+                    .feature: Set(0...255),
+                    .output: Set(0...255),
+                ],
+                maxPayloadLength: [
+                    .feature: max(device.maxFeatureReportLength, 64),
+                    .output: max(device.maxOutputReportLength, 64),
+                ]
+            )
+            do {
+                try transport.send(report, policy: policy)
+                outcome = "Sent: \(report.hexDescription)"
+            } catch {
+                outcome = "Failed: \(String(describing: error))"
+            }
+            HIDLog.shared.info("Manual send by developer: \(report.hexDescription)")
         }
-        // Manual sends still respect the device's max lengths, but use a
-        // permissive ID policy — that is the point of the tool. DEBUG only.
-        let policy = HIDReportPolicy(
-            allowedReportIDs: [
-                .feature: Set(0...255),
-                .output: Set(0...255),
-            ],
-            maxPayloadLength: [
-                .feature: max(device.maxFeatureReportLength, 64),
-                .output: max(device.maxOutputReportLength, 64),
-            ]
-        )
-        do {
-            try transport.send(report, policy: policy)
-            outcome = "Sent: \(report.hexDescription)"
-        } catch {
-            outcome = "Failed: \(String(describing: error))"
-        }
-        HIDLog.shared.info("Manual send by developer: \(report.hexDescription)")
     }
-}
 #endif

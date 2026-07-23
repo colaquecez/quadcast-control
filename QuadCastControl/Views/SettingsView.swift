@@ -25,8 +25,8 @@ struct SettingsView: View {
                         }
                     }
                 Text(
-                    "The QuadCast 2 reverts to full brightness when the app stops, " +
-                    "so keep the app running (menu bar) to hold your setting."
+                    "The QuadCast 2 reverts to full brightness when the app stops, "
+                        + "so keep the app running (menu bar) to hold your setting."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -37,16 +37,18 @@ struct SettingsView: View {
             }
 
             Section("Lighting") {
-                Toggle("Lighting control", isOn: Binding(
-                    get: { appState.lightingControlEnabled },
-                    set: { enabled in
-                        if enabled {
-                            appState.userEnabledLightingControl()
-                        } else {
-                            appState.userDisabledLightingControl()
+                Toggle(
+                    "Lighting control",
+                    isOn: Binding(
+                        get: { appState.lightingControlEnabled },
+                        set: { enabled in
+                            if enabled {
+                                appState.userEnabledLightingControl()
+                            } else {
+                                appState.userDisabledLightingControl()
+                            }
                         }
-                    }
-                ))
+                    ))
                 Text("When off, the app is read-only and sends nothing over USB.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -55,9 +57,9 @@ struct SettingsView: View {
             Section("About") {
                 LabeledContent("Purpose", value: "Local LED control for HyperX QuadCast 2 microphones")
                 Text(
-                    "This app makes no network connections, collects no telemetry, and " +
-                    "talks only to allowlisted HyperX USB HID devices. Preferences are " +
-                    "stored in UserDefaults."
+                    "This app makes no network connections, collects no telemetry, and "
+                        + "talks only to allowlisted HyperX USB HID devices. Preferences are "
+                        + "stored in UserDefaults."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -50,16 +50,20 @@ public final class HyperXDeviceManager {
         IOHIDManagerSetDeviceMatchingMultiple(manager, matching as CFArray)
 
         let context = Unmanaged.passUnretained(self).toOpaque()
-        IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, _, _, device in
-            guard let context else { return }
-            let me = Unmanaged<HyperXDeviceManager>.fromOpaque(context).takeUnretainedValue()
-            MainActor.assumeIsolated { me.deviceMatched(device) }
-        }, context)
-        IOHIDManagerRegisterDeviceRemovalCallback(manager, { context, _, _, device in
-            guard let context else { return }
-            let me = Unmanaged<HyperXDeviceManager>.fromOpaque(context).takeUnretainedValue()
-            MainActor.assumeIsolated { me.deviceRemoved(device) }
-        }, context)
+        IOHIDManagerRegisterDeviceMatchingCallback(
+            manager,
+            { context, _, _, device in
+                guard let context else { return }
+                let me = Unmanaged<HyperXDeviceManager>.fromOpaque(context).takeUnretainedValue()
+                MainActor.assumeIsolated { me.deviceMatched(device) }
+            }, context)
+        IOHIDManagerRegisterDeviceRemovalCallback(
+            manager,
+            { context, _, _, device in
+                guard let context else { return }
+                let me = Unmanaged<HyperXDeviceManager>.fromOpaque(context).takeUnretainedValue()
+                MainActor.assumeIsolated { me.deviceRemoved(device) }
+            }, context)
 
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
         // Note: we never call IOHIDManagerOpen — opening the *manager* is only
@@ -119,9 +123,9 @@ public final class HyperXDeviceManager {
         interfaces[info.id] = info
         let status = info.knownDevice.map { "known: \($0.model.rawValue)" } ?? "unknown model (read-only)"
         log.info(
-            "HID interface attached: \(info.name) " +
-            String(format: "VID 0x%04X PID 0x%04X ", info.vendorID, info.productID) +
-            String(format: "usagePage 0x%04X usage 0x%02X — %@", info.usagePage, info.usage, status)
+            "HID interface attached: \(info.name) "
+                + String(format: "VID 0x%04X PID 0x%04X ", info.vendorID, info.productID)
+                + String(format: "usagePage 0x%04X usage 0x%02X — %@", info.usagePage, info.usage, status)
         )
         onEvent?(.connected(info))
     }

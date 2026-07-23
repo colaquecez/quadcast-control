@@ -64,7 +64,8 @@ public final class IOKitHIDTransport: HIDTransport, DisconnectMarkable, @uncheck
         try lock.withLockTyped { () throws(HIDTransportError) -> Void in
             if _disconnected { throw .deviceDisconnected }
             guard _isOpen else { throw .deviceNotOpen }
-            let type: IOHIDReportType = report.kind == .feature ? kIOHIDReportTypeFeature : kIOHIDReportTypeOutput
+            let type: IOHIDReportType =
+                report.kind == .feature ? kIOHIDReportTypeFeature : kIOHIDReportTypeOutput
             // Note: on macOS the payload must NOT include the report ID byte;
             // it is passed separately here (unlike hidapi on Linux).
             let status = report.payload.withUnsafeBufferPointer { buffer -> IOReturn in

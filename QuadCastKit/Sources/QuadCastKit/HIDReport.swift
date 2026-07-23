@@ -47,8 +47,7 @@ public struct HIDReport: Sendable, Equatable {
     }
 
     public var hexDescription: String {
-        "[\(kind)] id=0x\(String(format: "%02X", reportID)) len=\(payload.count) " +
-            HexDump.compact(payload)
+        "[\(kind)] id=0x\(String(format: "%02X", reportID)) len=\(payload.count) " + HexDump.compact(payload)
     }
 }
 

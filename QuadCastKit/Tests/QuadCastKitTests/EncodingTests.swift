@@ -77,7 +77,7 @@ struct HexDumpTests {
     @Test func rejectsMalformedInput() {
         #expect(HexDump.parse("zz") == nil)
         #expect(HexDump.parse("") == nil)
-        #expect(HexDump.parse("0A 1") == [0x0A, 0x01]) // short token is a valid nibble
-        #expect(HexDump.parse("123") == nil) // odd-length contiguous run
+        #expect(HexDump.parse("0A 1") == [0x0A, 0x01])  // short token is a valid nibble
+        #expect(HexDump.parse("123") == nil)  // odd-length contiguous run
     }
 }
