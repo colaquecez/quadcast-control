@@ -68,6 +68,7 @@ struct MenuBarView: View {
                     NSApp.activate(ignoringOtherApps: true)
                 }
                 Spacer()
+                settingsButton
                 Button("Quit") {
                     NSApp.terminate(nil)
                 }
@@ -76,5 +77,24 @@ struct MenuBarView: View {
         }
         .padding(12)
         .frame(width: 280)
+    }
+
+    /// As a menu-bar-only app (LSUIElement) there is no app menu, so Settings
+    /// (with "Start at login") must be reachable from here.
+    @ViewBuilder private var settingsButton: some View {
+        if #available(macOS 14.0, *) {
+            SettingsLink {
+                Text("Settings…")
+            }
+            .simultaneousGesture(TapGesture().onEnded {
+                NSApp.activate(ignoringOtherApps: true)
+            })
+        } else {
+            Button("Settings…") {
+                // Legacy selector for macOS 13 (SettingsLink is 14+).
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }
