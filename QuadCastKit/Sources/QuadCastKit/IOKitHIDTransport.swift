@@ -15,7 +15,15 @@ public final class IOKitHIDTransport: HIDTransport, DisconnectMarkable, @uncheck
     private let lock = NSLock()
     private var _isOpen = false
     private var _disconnected = false
+    /// True when opened via `openForMonitoring()` on a non-LED interface:
+    /// input reports may be read, but `send` is refused.
+    private var _monitorOnly = false
     private var disconnectHandler: (@Sendable () -> Void)?
+    private var inputHandler: (@Sendable (HIDInputReport) -> Void)?
+    /// Stable buffer IOKit writes incoming reports into; must outlive the
+    /// registered callback.
+    private var inputBuffer: UnsafeMutablePointer<UInt8>?
+    private var inputBufferLength = 0
     private let log: HIDLog
 
     public init(device: IOHIDDevice, info: HIDDeviceInfo, log: HIDLog = .shared) {
@@ -58,7 +66,85 @@ public final class IOKitHIDTransport: HIDTransport, DisconnectMarkable, @uncheck
         log.info("Closed \(info.name)")
     }
 
+    /// Opens any *allowlisted* interface (including audio-side PIDs) for
+    /// read-only input monitoring. Unlike `open()`, this never enables
+    /// sending: on non-LED interfaces the transport stays monitor-only.
+    public func openForMonitoring() throws(HIDTransportError) {
+        guard let known = info.knownDevice else {
+            throw .unsupportedDevice(vendorID: info.vendorID, productID: info.productID)
+        }
+        try lock.withLockTyped { () throws(HIDTransportError) -> Void in
+            if _disconnected { throw .deviceDisconnected }
+            if !known.supportsLEDControl { _monitorOnly = true }
+            guard !_isOpen else { return }
+            let status = IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
+            guard status == kIOReturnSuccess else {
+                throw .openFailed(code: status)
+            }
+            _isOpen = true
+        }
+        log.info("Opened \(info.name) for read-only input monitoring")
+    }
+
+    public func startInputReportMonitoring(
+        _ handler: @escaping @Sendable (HIDInputReport) -> Void
+    ) throws(HIDTransportError) {
+        try lock.withLockTyped { () throws(HIDTransportError) -> Void in
+            if _disconnected { throw .deviceDisconnected }
+            guard _isOpen else { throw .deviceNotOpen }
+            inputHandler = handler
+            if inputBuffer == nil {
+                let length = max(info.maxInputReportLength, 64)
+                inputBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
+                inputBufferLength = length
+            }
+            guard let buffer = inputBuffer else { throw .ioError(code: -1) }
+            let context = Unmanaged.passUnretained(self).toOpaque()
+            IOHIDDeviceRegisterInputReportCallback(
+                device, buffer, inputBufferLength,
+                { context, _, _, _, reportID, report, reportLength in
+                    guard let context else { return }
+                    let me = Unmanaged<IOKitHIDTransport>.fromOpaque(context)
+                        .takeUnretainedValue()
+                    let bytes = [UInt8](UnsafeBufferPointer(start: report, count: reportLength))
+                    me.deliverInputReport(reportID: UInt8(clamping: reportID), bytes: bytes)
+                }, context
+            )
+            // Input callbacks need the device on a run loop; main is where
+            // discovery already lives and the event rate is tiny.
+            IOHIDDeviceScheduleWithRunLoop(
+                device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue
+            )
+        }
+    }
+
+    public func stopInputReportMonitoring() {
+        lock.withLock {
+            guard inputHandler != nil else { return }
+            inputHandler = nil
+            if !_disconnected {
+                IOHIDDeviceUnscheduleFromRunLoop(
+                    device, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue
+                )
+            }
+        }
+    }
+
+    private func deliverInputReport(reportID: UInt8, bytes: [UInt8]) {
+        let handler = lock.withLock { inputHandler }
+        handler?(HIDInputReport(deviceID: info.id, reportID: reportID, bytes: bytes))
+    }
+
+    deinit {
+        inputBuffer?.deallocate()
+    }
+
     public func send(_ report: HIDReport, policy: HIDReportPolicy) throws(HIDTransportError) {
+        // Monitor-only transports (audio-side interfaces) can never send.
+        let monitorOnly = lock.withLock { _monitorOnly }
+        if monitorOnly {
+            throw .unsupportedDevice(vendorID: info.vendorID, productID: info.productID)
+        }
         // Software validation happens before any bytes reach IOKit.
         try policy.validate(report)
         try lock.withLockTyped { () throws(HIDTransportError) -> Void in

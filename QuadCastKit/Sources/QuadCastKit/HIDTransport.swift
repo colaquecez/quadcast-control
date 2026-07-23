@@ -91,6 +91,16 @@ public protocol HIDTransport: AnyObject, Sendable {
     /// Reads a feature report, when the device supports it.
     func getFeatureReport(reportID: UInt8, maxLength: Int) throws(HIDTransportError) -> [UInt8]
 
+    /// Starts delivering the device's input reports (knob turns, mute
+    /// touches, …) to `handler`. Strictly read-only: nothing is sent to the
+    /// device. Requires the transport to be open.
+    func startInputReportMonitoring(
+        _ handler: @escaping @Sendable (HIDInputReport) -> Void
+    ) throws(HIDTransportError)
+
+    /// Stops input-report delivery. Safe to call when not monitoring.
+    func stopInputReportMonitoring()
+
     /// Registers a handler invoked once if the device disconnects while open.
     func setDisconnectHandler(_ handler: @escaping @Sendable () -> Void)
 }

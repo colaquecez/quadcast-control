@@ -16,6 +16,12 @@ final class AppState: ObservableObject {
     @Published private(set) var capabilities: LightingCapabilities = []
     @Published private(set) var logEntries: [HIDLogEntry] = []
 
+    /// Read-only input-report monitor (diagnostics): last events received
+    /// from the device — knob turns, mute touches, etc.
+    @Published private(set) var inputEvents: [HIDInputReport] = []
+    @Published private(set) var inputMonitoringActive = false
+    private let inputEventCapacity = 300
+
     /// Mirrors of the lighting state, bound to UI controls.
     @Published var ledOn = true
     @Published var brightnessPercent = 100.0
@@ -75,6 +81,9 @@ final class AppState: ObservableObject {
         switch event {
         case .connected(let info):
             await bindPrimaryIfNeeded(justConnected: info)
+            if inputMonitoringActive {
+                startMonitoring(interfaceID: info.id)
+            }
         case .disconnected:
             if let primary = primaryDevice, deviceManager.interfaces[primary.id] == nil {
                 primaryDevice = nil
@@ -183,6 +192,40 @@ final class AppState: ObservableObject {
             await lightingService.saveToDevice()
             await refreshErrorState()
         }
+    }
+
+    // MARK: Input monitoring (read-only diagnostics)
+
+    func setInputMonitoring(_ enabled: Bool) {
+        inputMonitoringActive = enabled
+        if enabled {
+            for interface in interfaces where interface.knownDevice != nil {
+                startMonitoring(interfaceID: interface.id)
+            }
+        } else {
+            deviceManager.stopAllInputMonitoring()
+        }
+    }
+
+    func clearInputEvents() {
+        inputEvents.removeAll()
+    }
+
+    private func startMonitoring(interfaceID: UInt64) {
+        deviceManager.startInputMonitoring(id: interfaceID) { [weak self] report in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.inputEvents.append(report)
+                if self.inputEvents.count > self.inputEventCapacity {
+                    self.inputEvents.removeFirst(self.inputEvents.count - self.inputEventCapacity)
+                }
+            }
+        }
+    }
+
+    /// Display name for the interface that produced an input report.
+    func interfaceName(for deviceID: UInt64) -> String {
+        interfaces.first { $0.id == deviceID }?.name ?? "id \(deviceID)"
     }
 
     // MARK: Helpers

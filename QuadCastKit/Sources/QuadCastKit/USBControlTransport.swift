@@ -98,6 +98,17 @@ public final class USBControlTransport: HIDTransport, DisconnectMarkable, @unche
         }
     }
 
+    public func startInputReportMonitoring(
+        _ handler: @escaping @Sendable (HIDInputReport) -> Void
+    ) throws(HIDTransportError) {
+        // Raw EP0 control transfers have no interrupt-IN event stream here;
+        // input monitoring goes through the HID interface instead (the
+        // device manager creates a separate monitoring transport for that).
+        throw .monitoringNotSupported
+    }
+
+    public func stopInputReportMonitoring() {}
+
     public func setDisconnectHandler(_ handler: @escaping @Sendable () -> Void) {
         lock.withLock { disconnectHandler = handler }
     }

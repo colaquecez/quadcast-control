@@ -102,6 +102,31 @@ A Codeberg kernel driver (`codeberg.org/dawn_ll/quadcast2-linux-driver`) claims
 readback. It is AI-generated, contradicts the capture-based findings above,
 and has no independent confirmation. **Unverified — not used.**
 
+### Audio settings (gain / monitor mix / mute) — NOT yet documented
+
+NGENUITY's audio *processing* (AI Noise Reduction, EQ, compressor, limiter,
+spatial audio) is host-side DSP on Windows — it does not exist in the mic and
+has no USB protocol to find. The *hardware* audio settings (gain, monitor
+mix, mute — what the multifunction knob controls) are device-level, but no
+public documentation of their commands exists (checked quadcastrgb, OpenRGB,
+GitHub at large — the community work covers lighting only).
+
+What we know from this hardware's descriptors:
+
+- The **controller** (`09AF`) exposes two *input* reports: `0x03` (consumer
+  page, 16-bit) and `0x05` (vendor page 0xFFFF, 7 bytes) — likely knob/mute
+  event telemetry.
+- The **audio device** (`07B4`) exposes a vendor collection (usage page
+  0xFFC1) with report ID `0x77`, 63 bytes in *and* out — the most plausible
+  NGENUITY command pipe for audio settings.
+
+The app ships a **read-only input monitor** (Diagnostics → "Live input
+reports") that streams these events without ever sending: turn the knob or
+tap mute and record which bytes change. To map the *write* commands, capture
+NGENUITY on Windows (Wireshark + USBPcap) while changing one audio setting,
+then compare with the Packet Diff tool. Add nothing to the encoders until
+byte structures are verified.
+
 ---
 
 ## 3. QuadCast 2 S — implemented in this app
